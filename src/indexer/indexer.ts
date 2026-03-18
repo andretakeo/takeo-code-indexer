@@ -11,7 +11,10 @@ import { discoverFiles } from "../utils/helpers.js";
 
 export interface IndexStats {
   filesFound: number;
-  filesProcessed: number;
+  filesAdded: number;
+  filesUpdated: number;
+  filesSkipped: number;
+  filesRemoved: number;
   chunksGenerated: number;
   chunksIndexed: number;
   durationMs: number;
@@ -56,7 +59,10 @@ export class Indexer {
     if (files.length === 0) {
       return {
         filesFound: 0,
-        filesProcessed: 0,
+        filesAdded: 0,
+        filesUpdated: 0,
+        filesSkipped: 0,
+        filesRemoved: 0,
         chunksGenerated: 0,
         chunksIndexed: 0,
         durationMs: Date.now() - start,
@@ -71,7 +77,10 @@ export class Indexer {
     if (chunks.length === 0) {
       return {
         filesFound: files.length,
-        filesProcessed: files.length,
+        filesAdded: 0,
+        filesUpdated: 0,
+        filesSkipped: files.length,
+        filesRemoved: 0,
         chunksGenerated: 0,
         chunksIndexed: 0,
         durationMs: Date.now() - start,
@@ -114,7 +123,10 @@ export class Indexer {
 
     return {
       filesFound: files.length,
-      filesProcessed: files.length,
+      filesAdded: files.length,
+      filesUpdated: 0,
+      filesSkipped: 0,
+      filesRemoved: 0,
       chunksGenerated: chunks.length,
       chunksIndexed: chunks.length,
       durationMs,

@@ -15,6 +15,8 @@ export interface CodeChunk {
   language: string;
   /** Optional metadata (function name, class name, etc.) */
   metadata?: Record<string, unknown>;
+  /** sha256 of full file contents — used for smart sync */
+  contentHash?: string;
 }
 
 // ── Embeddings ───────────────────────────────────────────────────────────────
@@ -47,9 +49,19 @@ export interface VectorStore {
   delete(ids: string[]): Promise<void>;
   count(): Promise<number>;
   getIndexedFilePaths(): Promise<string[]>;
+  getIndexedFileHashes(): Promise<Map<string, string>>;
+  deleteByFilePaths(paths: string[]): Promise<void>;
+  drop(): Promise<void>;
 }
 
 // ── Config ───────────────────────────────────────────────────────────────────
+
+export interface StoreConfig {
+  type: "lancedb" | "qdrant";
+  url?: string;
+  collectionName?: string;
+  apiKey?: string;
+}
 
 export interface CodeIndexerConfig {
   /** Glob patterns for files to include */
@@ -62,12 +74,8 @@ export interface CodeIndexerConfig {
   chunkOverlap: number;
   /** Embedding provider configuration */
   embedding: EmbeddingProviderConfig;
-  /** Qdrant connection settings */
-  qdrant: {
-    url: string;
-    collectionName: string;
-    apiKey?: string;
-  };
+  /** Vector store configuration */
+  store: StoreConfig;
 }
 
 export const DEFAULT_CONFIG: CodeIndexerConfig = {
@@ -86,6 +94,7 @@ export const DEFAULT_CONFIG: CodeIndexerConfig = {
     "**/package-lock.json",
     "**/yarn.lock",
     "**/pnpm-lock.yaml",
+    "**/.code-indexer/**",
   ],
   chunkMaxLines: 60,
   chunkOverlap: 5,
@@ -94,8 +103,7 @@ export const DEFAULT_CONFIG: CodeIndexerConfig = {
     model: "text-embedding-3-small",
     dimensions: 1536,
   },
-  qdrant: {
-    url: "http://localhost:6333",
-    collectionName: "code-indexer",
+  store: {
+    type: "lancedb",
   },
 };
