@@ -55,7 +55,26 @@ export async function chunkFile(
     const chunkLines = lines.slice(cursor, end);
     const content = chunkLines.join("\n").trim();
 
-    if (content.length > 0) {
+    // If this would be a tiny trailing fragment, merge it into the previous chunk
+    const minChunkLines = Math.max(Math.floor(chunkMaxLines * 0.1), 5);
+    if (content.length > 0 && (end - cursor) >= minChunkLines) {
+      chunks.push({
+        id: chunkId(filePath, index),
+        filePath,
+        content,
+        startLine: cursor + 1,
+        endLine: end,
+        language,
+      });
+      index++;
+    } else if (content.length > 0 && chunks.length > 0) {
+      // Merge tiny trailing fragment into previous chunk
+      const prev = chunks[chunks.length - 1];
+      const mergedLines = lines.slice(prev.startLine - 1, end);
+      prev.content = mergedLines.join("\n").trim();
+      prev.endLine = end;
+    } else if (content.length > 0) {
+      // First chunk is tiny (very small file) — still emit it
       chunks.push({
         id: chunkId(filePath, index),
         filePath,
@@ -67,7 +86,10 @@ export async function chunkFile(
       index++;
     }
 
-    // Advance cursor with overlap
+    // Advance cursor; only apply overlap if there are more lines ahead
+    if (end >= lines.length) {
+      break;
+    }
     const advance = end - cursor - chunkOverlap;
     cursor += Math.max(advance, 1);
   }

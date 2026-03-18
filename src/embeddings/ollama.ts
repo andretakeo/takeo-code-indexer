@@ -29,8 +29,9 @@ export class OllamaEmbeddingProvider implements EmbeddingProvider {
       });
 
       if (!response.ok) {
+        const body = await response.text().catch(() => "");
         throw new Error(
-          `Ollama embedding failed: ${response.status} ${response.statusText}`,
+          `Ollama embedding failed: ${response.status} ${response.statusText}${body ? ` — ${body}` : ""}`,
         );
       }
 

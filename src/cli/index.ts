@@ -83,6 +83,8 @@ program
   .description("Search the indexed codebase")
   .option("-n, --limit <number>", "Max results", "5")
   .option("-d, --dir <path>", "Project root (for config loading)", ".")
+  .option("--json", "Output results as JSON")
+  .option("--full", "Include full chunk content in output")
   .action(async (query, opts) => {
     const rootDir = resolve(opts.dir);
     const limit = parseInt(opts.limit, 10);
@@ -101,9 +103,22 @@ program
         rootDir,
       });
 
-      const spinner = ora("Searching…").start();
+      const spinner = opts.json ? null : ora("Searching…").start();
       const results = await indexer.search(query, limit);
-      spinner.stop();
+      spinner?.stop();
+
+      if (opts.json) {
+        const output = results.map((r) => ({
+          filePath: r.chunk.filePath,
+          startLine: r.chunk.startLine,
+          endLine: r.chunk.endLine,
+          language: r.chunk.language,
+          score: r.score,
+          ...(opts.full ? { content: r.chunk.content } : {}),
+        }));
+        console.log(JSON.stringify(output, null, 2));
+        return;
+      }
 
       if (results.length === 0) {
         console.log(chalk.yellow("No results found."));
@@ -126,13 +141,20 @@ program
         );
         console.log(chalk.dim(`     ${chunk.language}`));
 
-        // Show a preview (first 3 lines)
-        const preview = chunk.content
-          .split("\n")
-          .slice(0, 3)
-          .map((l) => `     ${chalk.dim(l)}`)
-          .join("\n");
-        console.log(preview);
+        if (opts.full) {
+          const contentLines = chunk.content
+            .split("\n")
+            .map((l) => `     ${chalk.dim(l)}`)
+            .join("\n");
+          console.log(contentLines);
+        } else {
+          const preview = chunk.content
+            .split("\n")
+            .slice(0, 3)
+            .map((l) => `     ${chalk.dim(l)}`)
+            .join("\n");
+          console.log(preview);
+        }
         console.log();
       }
     } catch (err) {
