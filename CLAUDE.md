@@ -16,8 +16,10 @@ npm run lint           # ESLint on src/
 Run the CLI in development:
 ```bash
 npx tsx src/cli/index.ts index --dir /path/to/project
+npx tsx src/cli/index.ts index --fresh --dir /path/to/project
 npx tsx src/cli/index.ts search "query"
 npx tsx src/cli/index.ts status
+npx tsx src/cli/index.ts clear --file "src/**/*.test.ts"
 npx tsx src/cli/index.ts install [--global | --local]
 ```
 
@@ -28,30 +30,32 @@ npx vitest run tests/chunker.test.ts
 
 ## Architecture
 
-Semantic code search CLI: scans files → chunks them → generates embeddings → stores vectors in Qdrant → searches via cosine similarity.
+Semantic code search CLI: scans files → chunks them → generates embeddings → stores vectors → searches via cosine similarity. Default store is embedded LanceDB (no server required); Qdrant is supported as an alternative.
 
 **Pipeline flow:** `CLI (commander) → Indexer → Chunker + EmbeddingProvider + VectorStore`
 
-- **`src/cli/index.ts`** — Entry point. Four commands: `index`, `search`, `status`, `install`. Wires up config, embedder, store, and indexer.
+- **`src/cli/index.ts`** — Entry point. Five commands: `index`, `search`, `status`, `clear`, `install`. Wires up config, embedder, store factory, and indexer.
 - **`src/cli/install.ts`** — `install` command. Writes Claude Code skill files to `~/.claude/skills/` (global) or `.claude/skills/` (local). Interactive prompt when no flag given.
-- **`src/cli/skills.ts`** — Skill template definitions. Four skills: `code-indexer-index`, `code-indexer-search`, `code-indexer-status`, `code-indexer-setup`.
-- **`src/indexer/indexer.ts`** — Orchestrator. The `Indexer` class coordinates the full pipeline: discover files → chunk → embed in batches (256 chunks, concurrency 3 via p-limit) → upsert to Qdrant. Also handles search by embedding the query and hitting the store.
+- **`src/cli/skills.ts`** — Skill template definitions. Five skills: `code-indexer-index`, `code-indexer-search`, `code-indexer-status`, `code-indexer-setup`, `code-indexer-clear`.
+- **`src/indexer/indexer.ts`** — Orchestrator with smart sync. Discovers files → computes content hashes → diffs against stored hashes → only re-embeds new/changed files. Supports `--fresh` flag to drop and re-index.
 - **`src/chunker/text-chunker.ts`** — Language-agnostic text chunker using a sliding window with natural break detection (blank lines, closing braces, function/class declarations, comment separators). Configurable via `chunkMaxLines` and `chunkOverlap`.
 - **`src/embeddings/`** — Provider pattern behind `EmbeddingProvider` interface. Factory in `index.ts`, implementations in `openai.ts` (batched, uses OpenAI SDK) and `ollama.ts` (sequential, uses fetch to `/api/embed`).
-- **`src/store/qdrant.ts`** — `VectorStore` implementation for Qdrant. Converts chunk IDs (sha256 hex) to numeric IDs by parsing the first 13 hex chars. Batches upserts in groups of 100.
-- **`src/utils/config.ts`** — Config loading via cosmiconfig. Searches for `.code-indexer.json`, `.code-indexer.yaml`, etc. Merges user config with `DEFAULT_CONFIG` from `types.ts`.
-- **`src/utils/helpers.ts`** — File discovery (glob), chunk ID generation (sha256), language inference from extension, score formatting.
-- **`src/types.ts`** — All shared interfaces (`CodeChunk`, `EmbeddingProvider`, `VectorStore`, `CodeIndexerConfig`) and `DEFAULT_CONFIG`.
+- **`src/store/index.ts`** — Store factory. Creates LanceDB or Qdrant store based on config.
+- **`src/store/lancedb.ts`** — `VectorStore` implementation for LanceDB (embedded, stores data in `.code-indexer/`).
+- **`src/store/qdrant.ts`** — `VectorStore` implementation for Qdrant (remote). Converts chunk IDs (sha256 hex) to numeric IDs by parsing the first 13 hex chars. Batches upserts in groups of 100.
+- **`src/utils/config.ts`** — Config loading via cosmiconfig. Searches for `.code-indexer.json`, `.code-indexer.yaml`, etc. Merges user config with `DEFAULT_CONFIG` from `types.ts`. Supports backwards-compat for old `qdrant` config key.
+- **`src/utils/helpers.ts`** — File discovery (glob), chunk ID generation (sha256), file content hashing, language inference from extension, score formatting.
+- **`src/types.ts`** — All shared interfaces (`CodeChunk`, `EmbeddingProvider`, `VectorStore`, `StoreConfig`, `CodeIndexerConfig`) and `DEFAULT_CONFIG`.
 
 ## Key Patterns
 
 - ESM-only (`"type": "module"` in package.json). All internal imports use `.js` extensions.
 - Interfaces for extension points: `EmbeddingProvider` and `VectorStore` are the abstractions to implement for new providers/stores.
 - Config is loaded via cosmiconfig from the project root being indexed (not this repo's root).
-- Tests use vitest with globals enabled. Test fixtures are created in a temp `__test_fixtures__/` dir that's cleaned up in `afterAll`.
+- Tests use vitest with globals enabled. Test fixtures are created in temp dirs that are cleaned up in `afterAll`.
 
 ## Prerequisites
 
 - Node.js >= 20
-- Qdrant running (e.g. `docker run -p 6333:6333 qdrant/qdrant`)
 - `OPENAI_API_KEY` env var for OpenAI embeddings, or Ollama running locally
+- No external database required (LanceDB is embedded by default)

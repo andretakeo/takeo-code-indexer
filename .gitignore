@@ -5,3 +5,4 @@ dist/
 .env.*
 __test_fixtures__/
 coverage/
+.code-indexer/
