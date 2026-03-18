@@ -1,0 +1,38 @@
+{
+  "name": "code-indexer",
+  "version": "0.1.0",
+  "description": "Semantic code search CLI powered by RAG/embeddings and Qdrant",
+  "type": "module",
+  "bin": {
+    "code-indexer": "./dist/cli/index.js"
+  },
+  "scripts": {
+    "build": "tsup src/cli/index.ts --format esm --dts --clean",
+    "dev": "tsx src/cli/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@qdrant/js-client-rest": "^1.12.0",
+    "chalk": "^5.3.0",
+    "commander": "^12.1.0",
+    "glob": "^11.0.0",
+    "openai": "^4.73.0",
+    "ora": "^8.1.0",
+    "cosmiconfig": "^9.0.0",
+    "p-limit": "^6.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsup": "^8.3.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0",
+    "eslint": "^9.15.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

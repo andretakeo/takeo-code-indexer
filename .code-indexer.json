@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "include": ["src/**/*.{ts,tsx,js,jsx}", "lib/**/*.ts"],
+  "exclude": ["**/node_modules/**", "**/dist/**", "**/.git/**", "**/*.test.*", "**/*.spec.*"],
+  "chunkMaxLines": 60,
+  "chunkOverlap": 5,
+  "embedding": {
+    "provider": "openai",
+    "model": "text-embedding-3-small",
+    "dimensions": 1536
+  },
+  "qdrant": {
+    "url": "http://localhost:6333",
+    "collectionName": "my-project"
+  }
+}
