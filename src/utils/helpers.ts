@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import { extname } from "node:path";
+import { extname, join } from "node:path";
+import { readFile } from "node:fs/promises";
 import { glob } from "glob";
 import type { CodeIndexerConfig } from "../types.js";
 
@@ -66,6 +67,13 @@ export function inferLanguage(filePath: string): string {
   };
 
   return languageMap[ext] ?? "text";
+}
+
+/** Compute sha256 hash of a file's contents */
+export async function fileContentHash(rootDir: string, filePath: string): Promise<string> {
+  const fullPath = join(rootDir, filePath);
+  const content = await readFile(fullPath, "utf-8");
+  return createHash("sha256").update(content).digest("hex");
 }
 
 /** Format a score as a percentage string */
