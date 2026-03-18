@@ -3,6 +3,7 @@ import type { Connection, Table } from "@lancedb/lancedb";
 import type { CodeChunk, SearchResult, VectorStore } from "../types.js";
 
 interface LanceRecord {
+  [key: string]: unknown;
   id: string;
   filePath: string;
   content: string;
@@ -54,9 +55,8 @@ export class LanceStore implements VectorStore {
   async search(vector: number[], limit: number): Promise<SearchResult[]> {
     if (this.table === null) return [];
 
-    const results = await this.table
-      .search(vector)
-      .distanceType("cosine")
+    const query = this.table.search(vector) as any;
+    const results = await (query.distanceType ? query.distanceType("cosine") : query)
       .limit(limit)
       .toArray();
 

@@ -1,16 +1,16 @@
 # Code Indexer
 
-Semantic code search CLI powered by embeddings and Qdrant vector database.
+Semantic code search CLI powered by embeddings and vector databases.
 
 Index your entire codebase and search it using natural language queries — "find the authentication middleware", "where is the database connection configured", etc.
 
 ## Architecture
 
 ```
-┌──────────────┐     ┌──────────────┐     ┌──────────────────┐     ┌─────────┐
-│  File System  │────▶│   Chunker    │────▶│ Embedding Provider│────▶│ Qdrant  │
-│  (glob scan)  │     │ (text-based) │     │ (OpenAI/Ollama)  │     │ (store) │
-└──────────────┘     └──────────────┘     └──────────────────┘     └─────────┘
+┌──────────────┐     ┌──────────────┐     ┌──────────────────┐     ┌──────────┐
+│  File System  │────▶│   Chunker    │────▶│ Embedding Provider│────▶│ LanceDB  │
+│  (glob scan)  │     │ (text-based) │     │ (OpenAI/Ollama)  │     │ (store)  │
+└──────────────┘     └──────────────┘     └──────────────────┘     └──────────┘
 ```
 
 ## Quick Start
@@ -18,8 +18,9 @@ Index your entire codebase and search it using natural language queries — "fin
 ### Prerequisites
 
 - Node.js ≥ 20
-- Qdrant running locally (or remote)
 - OpenAI API key (or Ollama for local embeddings)
+
+No external database required — code-indexer uses embedded LanceDB by default.
 
 ### Install & Run
 
@@ -30,9 +31,6 @@ npm install
 
 # Build and link the CLI globally
 npm run build && npm link
-
-# Start Qdrant (Docker)
-docker run -p 6333:6333 qdrant/qdrant
 
 # Set your OpenAI key
 export OPENAI_API_KEY=sk-...
@@ -77,10 +75,6 @@ Create a `.code-indexer.json` in your project root:
     "provider": "openai",
     "model": "text-embedding-3-small",
     "dimensions": 1536
-  },
-  "qdrant": {
-    "url": "http://localhost:6333",
-    "collectionName": "my-project"
   }
 }
 ```
@@ -96,17 +90,37 @@ Create a `.code-indexer.json` in your project root:
 | `embedding.provider` | `openai` | `openai` or `ollama` |
 | `embedding.model` | `text-embedding-3-small` | Model name |
 | `embedding.dimensions` | 1536 | Vector dimensions |
-| `qdrant.url` | `http://localhost:6333` | Qdrant server URL |
-| `qdrant.collectionName` | `code-indexer` | Collection name |
+| `store.type` | `lancedb` | `lancedb` (embedded) or `qdrant` (remote) |
+| `store.url` | — | Qdrant server URL (qdrant only) |
+| `store.collectionName` | `code-indexer` | Collection name (qdrant only) |
+
+### Using Qdrant (advanced)
+
+To use a remote Qdrant instance instead of embedded LanceDB:
+
+```json
+{
+  "store": {
+    "type": "qdrant",
+    "url": "http://localhost:6333",
+    "collectionName": "my-project"
+  }
+}
+```
+
+```bash
+docker run -p 6333:6333 qdrant/qdrant
+```
 
 ## CLI Commands
 
 ### `code-indexer index`
 
-Scans, chunks, embeds, and stores your codebase.
+Scans, chunks, embeds, and stores your codebase. Uses smart sync to only process changed files.
 
 ```bash
-code-indexer index [--dir <path>]
+code-indexer index [--dir <path>]       # incremental sync
+code-indexer index --fresh              # drop and re-index from scratch
 ```
 
 ### `code-indexer search <query>`
@@ -123,6 +137,17 @@ Shows current config and index stats.
 
 ```bash
 code-indexer status [--dir <path>]
+```
+
+### `code-indexer clear`
+
+Clear the index entirely or remove specific files.
+
+```bash
+code-indexer clear                          # drop entire index (with confirmation)
+code-indexer clear -y                       # drop without confirmation
+code-indexer clear --file src/auth.ts       # remove one file
+code-indexer clear --file "src/hooks/**"    # remove by glob pattern
 ```
 
 ### `code-indexer install`
@@ -165,10 +190,11 @@ npm run build
 
 ## Roadmap
 
-- [ ] Incremental indexing (only re-index changed files)
+- [x] Incremental indexing (smart sync — only re-index changed files)
+- [x] Embedded vector store (LanceDB — no server required)
+- [x] Clear command (full wipe and per-file deletion)
 - [ ] AST-aware chunking for supported languages
 - [ ] Watch mode for auto-reindexing
 - [ ] TUI interface with interactive results
 - [ ] Support for more embedding providers (Cohere, local GGUF)
 - [ ] Export results as JSON/Markdown
-```

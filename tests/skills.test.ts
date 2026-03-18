@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import { SKILLS } from "../src/cli/skills.js";
 
 describe("skill templates", () => {
-  it("should export 4 skills", () => {
-    expect(SKILLS).toHaveLength(4);
+  it("should export 5 skills", () => {
+    expect(SKILLS).toHaveLength(5);
   });
 
   it("each skill should have name, dirName, and content", () => {
@@ -21,5 +21,6 @@ describe("skill templates", () => {
     expect(names).toContain("code-indexer-search");
     expect(names).toContain("code-indexer-status");
     expect(names).toContain("code-indexer-setup");
+    expect(names).toContain("code-indexer-clear");
   });
 });

@@ -16,7 +16,7 @@ afterAll(async () => {
 describe("writeSkills", () => {
   it("should create skill directories and files", async () => {
     const written = await writeSkills(TEST_DIR);
-    expect(written).toHaveLength(4);
+    expect(written).toHaveLength(5);
 
     for (const skillPath of written) {
       const content = await readFile(skillPath, "utf-8");
@@ -31,10 +31,11 @@ describe("writeSkills", () => {
     expect(dirs).toContain("code-indexer-search");
     expect(dirs).toContain("code-indexer-status");
     expect(dirs).toContain("code-indexer-setup");
+    expect(dirs).toContain("code-indexer-clear");
   });
 
   it("should overwrite existing skills on re-run", async () => {
     const written = await writeSkills(TEST_DIR);
-    expect(written).toHaveLength(4);
+    expect(written).toHaveLength(5);
   });
 });
