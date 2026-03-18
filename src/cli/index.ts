@@ -9,6 +9,7 @@ import { createEmbeddingProvider } from "../embeddings/index.js";
 import { QdrantStore } from "../store/qdrant.js";
 import { Indexer } from "../indexer/indexer.js";
 import { formatScore, discoverFiles } from "../utils/helpers.js";
+import { installAction } from "./install.js";
 
 const program = new Command();
 
@@ -193,5 +194,14 @@ program
       process.exit(1);
     }
   });
+
+// ── install command ─────────────────────────────────────────────────────────
+
+program
+  .command("install")
+  .description("Install Claude Code skills for code-indexer")
+  .option("-g, --global", "Install to ~/.claude/skills/")
+  .option("-l, --local", "Install to .claude/skills/ in current project")
+  .action(installAction);
 
 program.parse();
