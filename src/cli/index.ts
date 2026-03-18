@@ -6,16 +6,19 @@ import ora from "ora";
 import { resolve } from "node:path";
 import { loadConfig } from "../utils/config.js";
 import { createEmbeddingProvider } from "../embeddings/index.js";
-import { QdrantStore } from "../store/qdrant.js";
+import { createStore } from "../store/index.js";
 import { Indexer } from "../indexer/indexer.js";
 import { formatScore, discoverFiles } from "../utils/helpers.js";
 import { installAction } from "./install.js";
+import { minimatch } from "minimatch";
+import { createInterface } from "node:readline/promises";
+import { stdin, stdout } from "node:process";
 
 const program = new Command();
 
 program
   .name("code-indexer")
-  .description("Semantic code search powered by embeddings & Qdrant")
+  .description("Semantic code search powered by embeddings")
   .version("0.1.0");
 
 // ── index command ────────────────────────────────────────────────────────────
@@ -24,6 +27,7 @@ program
   .command("index")
   .description("Index the current codebase")
   .option("-d, --dir <path>", "Root directory to index", ".")
+  .option("--fresh", "Drop existing index and re-index from scratch")
   .action(async (opts) => {
     const rootDir = resolve(opts.dir);
     const spinner = ora("Loading config…").start();
@@ -31,17 +35,14 @@ program
     try {
       const config = await loadConfig(rootDir);
       const embedder = createEmbeddingProvider(config.embedding);
-      const store = new QdrantStore(
-        config.qdrant.url,
-        config.qdrant.collectionName,
-        config.qdrant.apiKey,
-      );
+      const store = createStore(config.store, rootDir);
 
       const indexer = new Indexer({
         config,
         embeddingProvider: embedder,
         store,
         rootDir,
+        fresh: opts.fresh ?? false,
         onProgress: (msg) => {
           spinner.text = msg;
         },
@@ -53,7 +54,10 @@ program
       console.log();
       console.log(chalk.bold("  Index Stats"));
       console.log(`  Files found:      ${chalk.cyan(stats.filesFound)}`);
-      console.log(`  Files processed:  ${chalk.cyan(stats.filesProcessed)}`);
+      console.log(`  Files added:      ${chalk.green(stats.filesAdded)}`);
+      console.log(`  Files updated:    ${chalk.yellow(stats.filesUpdated)}`);
+      console.log(`  Files skipped:    ${chalk.dim(stats.filesSkipped)}`);
+      console.log(`  Files removed:    ${chalk.red(stats.filesRemoved)}`);
       console.log(`  Chunks generated: ${chalk.cyan(stats.chunksGenerated)}`);
       console.log(`  Chunks indexed:   ${chalk.cyan(stats.chunksIndexed)}`);
       console.log(
@@ -86,11 +90,7 @@ program
     try {
       const config = await loadConfig(rootDir);
       const embedder = createEmbeddingProvider(config.embedding);
-      const store = new QdrantStore(
-        config.qdrant.url,
-        config.qdrant.collectionName,
-        config.qdrant.apiKey,
-      );
+      const store = createStore(config.store, rootDir);
 
       await store.initialize(embedder.dimensions);
 
@@ -152,11 +152,7 @@ program
 
     try {
       const config = await loadConfig(rootDir);
-      const store = new QdrantStore(
-        config.qdrant.url,
-        config.qdrant.collectionName,
-        config.qdrant.apiKey,
-      );
+      const store = createStore(config.store, rootDir);
 
       // Discover files on disk
       const discoverableFiles = await discoverFiles(rootDir, config);
@@ -185,8 +181,13 @@ program
       console.log(
         `  Embedding:        ${chalk.cyan(`${config.embedding.provider}/${config.embedding.model}`)}`,
       );
-      console.log(`  Qdrant URL:       ${chalk.cyan(config.qdrant.url)}`);
-      console.log(`  Collection:       ${chalk.cyan(config.qdrant.collectionName)}`);
+      console.log(`  Store:            ${chalk.cyan(config.store.type)}`);
+      if (config.store.type === "qdrant" && config.store.url) {
+        console.log(`  Qdrant URL:       ${chalk.cyan(config.store.url)}`);
+      }
+      if (config.store.collectionName) {
+        console.log(`  Collection:       ${chalk.cyan(config.store.collectionName)}`);
+      }
       console.log(`  Vectors stored:   ${chalk.cyan(vectorCount)}`);
       console.log(`  Files on disk:    ${chalk.cyan(discoverableFiles.length)}`);
       console.log(`  Files indexed:    ${chalk.cyan(indexedFileCount)}`);
@@ -196,6 +197,86 @@ program
       console.log();
     } catch (err) {
       console.error(chalk.red(err instanceof Error ? err.message : String(err)));
+      process.exit(1);
+    }
+  });
+
+// ── clear command ────────────────────────────────────────────────────────────
+
+program
+  .command("clear")
+  .description("Clear the index (all or specific files)")
+  .option("-d, --dir <path>", "Project root (for config loading)", ".")
+  .option("-f, --file <path>", "File path or glob pattern to remove")
+  .option("-y, --yes", "Skip confirmation prompt")
+  .action(async (opts) => {
+    const rootDir = resolve(opts.dir);
+
+    try {
+      const config = await loadConfig(rootDir);
+      const store = createStore(config.store, rootDir);
+      await store.initialize(config.embedding.dimensions ?? 1536);
+
+      if (opts.file) {
+        // Delete specific file(s)
+        const allPaths = await store.getIndexedFilePaths();
+        const matched = allPaths.filter(
+          (p) => p === opts.file || minimatch(p, opts.file),
+        );
+
+        if (matched.length === 0) {
+          console.log(chalk.yellow(`No indexed files match "${opts.file}"`));
+          return;
+        }
+
+        if (!opts.yes) {
+          const rl = createInterface({ input: stdin, output: stdout });
+          const answer = await rl.question(
+            `Delete ${chalk.cyan(matched.length)} file(s) from index? (y/n) `,
+          );
+          rl.close();
+          if (answer.trim().toLowerCase() !== "y") {
+            console.log("Cancelled.");
+            return;
+          }
+        }
+
+        const spinner = ora(`Removing ${matched.length} file(s)…`).start();
+        await store.deleteByFilePaths(matched);
+        spinner.succeed(`Removed ${matched.length} file(s) from index`);
+
+        for (const p of matched) {
+          console.log(`  ${chalk.red("−")} ${p}`);
+        }
+      } else {
+        // Drop entire index
+        const vectorCount = await store.count();
+
+        if (!opts.yes) {
+          const rl = createInterface({ input: stdin, output: stdout });
+          const answer = await rl.question(
+            `This will delete all ${chalk.cyan(vectorCount)} vectors. Continue? (y/n) `,
+          );
+          rl.close();
+          if (answer.trim().toLowerCase() !== "y") {
+            console.log("Cancelled.");
+            return;
+          }
+        }
+
+        const spinner = ora("Clearing index…").start();
+        await store.drop();
+        spinner.succeed("Index cleared");
+      }
+
+      console.log();
+    } catch (err) {
+      if (err instanceof Error) {
+        console.error(chalk.red(err.message || err.name));
+        if (err.cause) console.error(chalk.dim(String(err.cause)));
+      } else {
+        console.error(chalk.red(String(err)));
+      }
       process.exit(1);
     }
   });
