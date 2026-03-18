@@ -8,7 +8,7 @@ import { loadConfig } from "../utils/config.js";
 import { createEmbeddingProvider } from "../embeddings/index.js";
 import { QdrantStore } from "../store/qdrant.js";
 import { Indexer } from "../indexer/indexer.js";
-import { formatScore } from "../utils/helpers.js";
+import { formatScore, discoverFiles } from "../utils/helpers.js";
 
 const program = new Command();
 
@@ -152,12 +152,25 @@ program
         config.qdrant.apiKey,
       );
 
+      // Discover files on disk
+      const discoverableFiles = await discoverFiles(rootDir, config);
+
       let vectorCount: number | string;
+      let indexedFileCount: number | string;
+      let coverage: string;
       try {
         await store.initialize(config.embedding.dimensions ?? 1536);
         vectorCount = await store.count();
+        const indexedFiles = await store.getIndexedFilePaths();
+        indexedFileCount = indexedFiles.length;
+        const pct = discoverableFiles.length > 0
+          ? (indexedFiles.length / discoverableFiles.length * 100)
+          : 0;
+        coverage = `${pct.toFixed(1)}%`;
       } catch {
         vectorCount = chalk.red("unreachable") as string;
+        indexedFileCount = chalk.red("unreachable") as string;
+        coverage = chalk.red("unknown") as string;
       }
 
       console.log();
@@ -169,6 +182,9 @@ program
       console.log(`  Qdrant URL:       ${chalk.cyan(config.qdrant.url)}`);
       console.log(`  Collection:       ${chalk.cyan(config.qdrant.collectionName)}`);
       console.log(`  Vectors stored:   ${chalk.cyan(vectorCount)}`);
+      console.log(`  Files on disk:    ${chalk.cyan(discoverableFiles.length)}`);
+      console.log(`  Files indexed:    ${chalk.cyan(indexedFileCount)}`);
+      console.log(`  Coverage:         ${chalk.cyan(coverage)}`);
       console.log(`  Include patterns: ${chalk.dim(config.include.join(", "))}`);
       console.log(`  Exclude patterns: ${chalk.dim(config.exclude.slice(0, 3).join(", "))}…`);
       console.log();
