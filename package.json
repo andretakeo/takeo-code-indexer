@@ -4,7 +4,7 @@
   "description": "Semantic code search CLI powered by RAG/embeddings and Qdrant",
   "type": "module",
   "bin": {
-    "code-indexer": "./dist/cli/index.js"
+    "code-indexer": "./dist/index.js"
   },
   "scripts": {
     "build": "tsup src/cli/index.ts --format esm --dts --clean",
