@@ -49,6 +49,7 @@ export class QdrantStore implements VectorStore {
           endLine: chunk.endLine,
           language: chunk.language,
           metadata: chunk.metadata ?? {},
+          contentHash: chunk.contentHash ?? "",
         },
       }));
 
@@ -117,6 +118,55 @@ export class QdrantStore implements VectorStore {
     }
 
     return [...filePaths].sort();
+  }
+
+  async getIndexedFileHashes(): Promise<Map<string, string>> {
+    const fileHashes = new Map<string, string>();
+    let offset: string | number | undefined = undefined;
+
+    while (true) {
+      const result = await this.client.scroll(this.collectionName, {
+        limit: 100,
+        offset,
+        with_payload: ["filePath", "contentHash"],
+        with_vector: false,
+      });
+
+      for (const point of result.points) {
+        const fp = point.payload?.filePath as string | undefined;
+        const hash = point.payload?.contentHash as string | undefined;
+        if (fp && hash) fileHashes.set(fp, hash);
+      }
+
+      const next = result.next_page_offset;
+      if (!next || typeof next === "object") break;
+      offset = next;
+    }
+
+    return fileHashes;
+  }
+
+  async deleteByFilePaths(paths: string[]): Promise<void> {
+    if (paths.length === 0) return;
+
+    const batchSize = 100;
+    for (let i = 0; i < paths.length; i += batchSize) {
+      const batch = paths.slice(i, i + batchSize);
+      await this.client.delete(this.collectionName, {
+        wait: true,
+        filter: {
+          must: [{ key: "filePath", match: { any: batch } }],
+        },
+      });
+    }
+  }
+
+  async drop(): Promise<void> {
+    try {
+      await this.client.deleteCollection(this.collectionName);
+    } catch {
+      // Collection may not exist — ignore
+    }
   }
 
   /** Convert a hex hash string to a numeric ID for Qdrant */

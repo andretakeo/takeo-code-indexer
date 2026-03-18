@@ -1,5 +1,5 @@
 import { cosmiconfig } from "cosmiconfig";
-import { DEFAULT_CONFIG, type CodeIndexerConfig } from "../types.js";
+import { DEFAULT_CONFIG, type CodeIndexerConfig, type StoreConfig } from "../types.js";
 
 const MODULE_NAME = "code-indexer";
 
@@ -23,7 +23,24 @@ export async function loadConfig(
     return { ...DEFAULT_CONFIG };
   }
 
-  const userConfig = result.config as Partial<CodeIndexerConfig>;
+  const userConfig = result.config as Partial<CodeIndexerConfig> & {
+    qdrant?: { url?: string; collectionName?: string; apiKey?: string };
+  };
+
+  // Resolve store config: new `store` key takes precedence over legacy `qdrant` key
+  let store: StoreConfig;
+  if (userConfig.store) {
+    store = { ...DEFAULT_CONFIG.store, ...userConfig.store };
+  } else if (userConfig.qdrant) {
+    store = {
+      type: "qdrant",
+      url: userConfig.qdrant.url,
+      collectionName: userConfig.qdrant.collectionName,
+      apiKey: userConfig.qdrant.apiKey,
+    };
+  } else {
+    store = DEFAULT_CONFIG.store;
+  }
 
   return {
     include: userConfig.include ?? DEFAULT_CONFIG.include,
@@ -34,9 +51,6 @@ export async function loadConfig(
       ...DEFAULT_CONFIG.embedding,
       ...userConfig.embedding,
     },
-    qdrant: {
-      ...DEFAULT_CONFIG.qdrant,
-      ...userConfig.qdrant,
-    },
+    store,
   };
 }
