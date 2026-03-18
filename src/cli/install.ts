@@ -55,33 +55,38 @@ export async function installAction(opts: {
   global?: boolean;
   local?: boolean;
 }): Promise<void> {
-  let location: "global" | "local";
+  try {
+    let location: "global" | "local";
 
-  if (opts.global) {
-    location = "global";
-  } else if (opts.local) {
-    location = "local";
-  } else {
-    location = await promptLocation();
+    if (opts.global) {
+      location = "global";
+    } else if (opts.local) {
+      location = "local";
+    } else {
+      location = await promptLocation();
+    }
+
+    const targetDir = resolveSkillsDir(location, process.cwd());
+
+    console.log();
+    console.log(
+      chalk.dim(`  Installing to ${targetDir}`),
+    );
+    console.log();
+
+    const written = await writeSkills(targetDir);
+
+    for (const filePath of written) {
+      console.log(`  ${chalk.green("✓")} ${filePath}`);
+    }
+
+    console.log();
+    console.log(
+      chalk.bold(`  ${written.length} skills installed successfully!`),
+    );
+    console.log();
+  } catch (err) {
+    console.error(chalk.red(err instanceof Error ? err.message : String(err)));
+    process.exit(1);
   }
-
-  const targetDir = resolveSkillsDir(location, process.cwd());
-
-  console.log();
-  console.log(
-    chalk.dim(`  Installing to ${targetDir}`),
-  );
-  console.log();
-
-  const written = await writeSkills(targetDir);
-
-  for (const filePath of written) {
-    console.log(`  ${chalk.green("✓")} ${filePath}`);
-  }
-
-  console.log();
-  console.log(
-    chalk.bold(`  ${written.length} skills installed successfully!`),
-  );
-  console.log();
 }
