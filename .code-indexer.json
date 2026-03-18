@@ -1,16 +1,27 @@
 {
-  "$schema": "https://json-schema.org/draft-07/schema#",
-  "include": ["src/**/*.{ts,tsx,js,jsx}", "lib/**/*.ts"],
-  "exclude": ["**/node_modules/**", "**/dist/**", "**/.git/**", "**/*.test.*", "**/*.spec.*"],
-  "chunkMaxLines": 60,
-  "chunkOverlap": 5,
+  "include": [
+    "app/**/*.{ts,tsx}",
+    "components/**/*.{ts,tsx}",
+    "constants/**/*.{ts,tsx}",
+    "contexts/**/*.{ts,tsx}",
+    "db/**/*.{ts,tsx}",
+    "hooks/**/*.{ts,tsx}",
+    "scripts/**/*.{ts,tsx,js}"
+  ],
+  "exclude": [
+    "**/node_modules/**",
+    "**/*.test.*",
+    "**/*.spec.*",
+    "**/dist/**",
+    "expo-env.d.ts",
+    "**/.code-indexer/**"
+  ],
+  "chunkMaxLines": 200,
+  "chunkOverlap": 10,
   "embedding": {
-    "provider": "openai",
-    "model": "text-embedding-3-small",
-    "dimensions": 1536
-  },
-  "qdrant": {
-    "url": "http://localhost:6333",
-    "collectionName": "my-project"
+    "provider": "ollama",
+    "model": "granite-embedding:30m",
+    "dimensions": 384,
+    "baseUrl": "http://localhost:11434"
   }
 }

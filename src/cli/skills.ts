@@ -54,10 +54,16 @@ code-indexer search "database connection pool" --limit 10
 code-indexer search "error handling" --dir /path/to/project
 \`\`\`
 
-During development (not installed globally):
+## Output formats
+
 \`\`\`sh
-npx tsx src/cli/index.ts search "query" --limit 5
+code-indexer search "query"                # default: file path, lines, score, 3-line preview
+code-indexer search "query" --full         # show full chunk content instead of preview
+code-indexer search "query" --json         # JSON output (filePath, startLine, endLine, language, score)
+code-indexer search "query" --json --full  # JSON output with full chunk content included
 \`\`\`
+
+Use \`--json --full\` when piping results to other tools or when you need the complete source code of matched chunks.
 
 ## Interpreting results
 
@@ -65,7 +71,6 @@ npx tsx src/cli/index.ts search "query" --limit 5
 - **> 80%** (green): strong match
 - **60-80%** (yellow): partial match
 - **< 60%** (red): weak match
-- Results include a 3-line preview of the matched chunk
 
 ## Query tips
 
