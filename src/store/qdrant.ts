@@ -94,6 +94,31 @@ export class QdrantStore implements VectorStore {
     return info.points_count ?? 0;
   }
 
+  async getIndexedFilePaths(): Promise<string[]> {
+    const filePaths = new Set<string>();
+    let offset: string | number | undefined = undefined;
+
+    while (true) {
+      const result = await this.client.scroll(this.collectionName, {
+        limit: 100,
+        offset,
+        with_payload: ["filePath"],
+        with_vector: false,
+      });
+
+      for (const point of result.points) {
+        const fp = point.payload?.filePath as string | undefined;
+        if (fp) filePaths.add(fp);
+      }
+
+      const next = result.next_page_offset;
+      if (!next || typeof next === "object") break;
+      offset = next;
+    }
+
+    return [...filePaths].sort();
+  }
+
   /** Convert a hex hash string to a numeric ID for Qdrant */
   private hashToUint(hex: string): number {
     // Take first 13 hex chars → fits safely in a JS number (52-bit mantissa)

@@ -46,6 +46,7 @@ export interface VectorStore {
   search(vector: number[], limit: number): Promise<SearchResult[]>;
   delete(ids: string[]): Promise<void>;
   count(): Promise<number>;
+  getIndexedFilePaths(): Promise<string[]>;
 }
 
 // ── Config ───────────────────────────────────────────────────────────────────
