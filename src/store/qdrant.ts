@@ -6,7 +6,7 @@ export class QdrantStore implements VectorStore {
   private collectionName: string;
 
   constructor(url: string, collectionName: string, apiKey?: string) {
-    this.client = new QdrantClient({ url, apiKey });
+    this.client = new QdrantClient({ url, apiKey, checkCompatibility: false });
     this.collectionName = collectionName;
   }
 

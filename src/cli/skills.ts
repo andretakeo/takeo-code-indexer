@@ -169,7 +169,7 @@ Add glob patterns to the \`exclude\` array:
 \`\`\`
 Requires \`OPENAI_API_KEY\` environment variable.
 
-### Ollama (local, no API key)
+### Ollama (no API key needed)
 \`\`\`sh
 ollama pull nomic-embed-text
 \`\`\`
@@ -178,10 +178,12 @@ ollama pull nomic-embed-text
   "embedding": {
     "provider": "ollama",
     "model": "nomic-embed-text",
+    "baseUrl": "http://localhost:11434",
     "dimensions": 768
   }
 }
 \`\`\`
+**Important**: \`baseUrl\` is the Ollama server URL (default: \`http://localhost:11434\`). If Ollama runs on a different machine, update this. This is separate from the Qdrant \`url\` — do not confuse them.
 
 ## Qdrant setup
 

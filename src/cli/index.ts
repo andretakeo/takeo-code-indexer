@@ -62,7 +62,12 @@ program
       console.log();
     } catch (err) {
       spinner.fail("Indexing failed");
-      console.error(chalk.red(err instanceof Error ? err.message : String(err)));
+      if (err instanceof Error) {
+        console.error(chalk.red(err.message || err.name));
+        if (err.cause) console.error(chalk.dim(String(err.cause)));
+      } else {
+        console.error(chalk.red(String(err)));
+      }
       process.exit(1);
     }
   });
