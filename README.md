@@ -25,7 +25,11 @@ Index your entire codebase and search it using natural language queries — "fin
 
 ```bash
 # Clone and install
+git clone <repo-url> && cd code-indexer
 npm install
+
+# Build and link the CLI globally
+npm run build && npm link
 
 # Start Qdrant (Docker)
 docker run -p 6333:6333 qdrant/qdrant
@@ -34,13 +38,13 @@ docker run -p 6333:6333 qdrant/qdrant
 export OPENAI_API_KEY=sk-...
 
 # Index your codebase
-npx tsx src/cli/index.ts index --dir /path/to/your/project
+code-indexer index --dir /path/to/your/project
 
 # Search
-npx tsx src/cli/index.ts search "authentication middleware"
+code-indexer search "authentication middleware"
 
 # Check status
-npx tsx src/cli/index.ts status
+code-indexer status
 ```
 
 ### Using Ollama (local, no API key needed)
@@ -119,6 +123,16 @@ Shows current config and index stats.
 
 ```bash
 code-indexer status [--dir <path>]
+```
+
+### `code-indexer install`
+
+Installs Claude Code skill files so Claude can use code-indexer via slash commands.
+
+```bash
+code-indexer install              # interactive prompt
+code-indexer install --global     # install to ~/.claude/skills/
+code-indexer install --local      # install to .claude/skills/ in current project
 ```
 
 ## How Chunking Works
