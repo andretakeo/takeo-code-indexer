@@ -16,7 +16,7 @@
     "expo-env.d.ts",
     "**/.code-indexer/**"
   ],
-  "chunkMaxLines": 200,
+  "chunkMaxLines": 50,
   "chunkOverlap": 10,
   "embedding": {
     "provider": "ollama",

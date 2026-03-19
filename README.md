@@ -61,6 +61,29 @@ ollama pull nomic-embed-text
 }
 ```
 
+#### Lightweight option: Granite Embedding (30M params)
+
+For a fast, resource-friendly setup — ideal for laptops or CI environments:
+
+```bash
+ollama pull granite-embedding:30m
+```
+
+```json
+{
+  "chunkMaxLines": 50,
+  "chunkOverlap": 10,
+  "embedding": {
+    "provider": "ollama",
+    "model": "granite-embedding:30m",
+    "dimensions": 384,
+    "baseUrl": "http://localhost:11434"
+  }
+}
+```
+
+This model uses 384-dimension vectors (vs 768 for nomic-embed-text), resulting in smaller storage and faster indexing with reasonable accuracy for code search.
+
 ## Configuration
 
 Create a `.code-indexer.json` in your project root:
